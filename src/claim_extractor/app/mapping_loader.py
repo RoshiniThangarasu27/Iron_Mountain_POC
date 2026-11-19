@@ -4,7 +4,7 @@ import json
 def load_mapping():
 
     with open(
-        "app/config/default_837_mapping.json",
+        "src/claim_extractor/app/config/default_837_mapping.json",
         "r"
     ) as file:
 

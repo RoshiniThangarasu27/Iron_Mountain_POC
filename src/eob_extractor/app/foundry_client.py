@@ -1,7 +1,7 @@
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 
-from app.config import FOUNDRY_ENDPOINT, FOUNDRY_API_KEY
+from eob_extractor.app.config import FOUNDRY_ENDPOINT, FOUNDRY_API_KEY
 
 
 def get_client():

@@ -2,7 +2,7 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 
 from azure.core.credentials import AzureKeyCredential
 
-from app.config import DOCUMENT_INTELLIGENCE_ENDPOINT, DOCUMENT_INTELLIGENCE_KEY
+from eob_extractor.app.config import DOCUMENT_INTELLIGENCE_ENDPOINT, DOCUMENT_INTELLIGENCE_KEY
 
 
 class OCRExtractor:

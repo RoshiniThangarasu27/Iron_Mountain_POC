@@ -14,4 +14,4 @@ class Normalizer:
         for old, new in NORMALIZATION_MAP.items():
             text = text.replace(old, new)
 
-        return payload
+        return text

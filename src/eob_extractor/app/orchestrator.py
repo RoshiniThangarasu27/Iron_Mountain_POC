@@ -2,7 +2,7 @@ import json
 
 from openai import AzureOpenAI
 
-from app.config import AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY
+from eob_extractor.app.config import AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY,AZURE_OPENAI_DEPLOYMENT
 
 client = AzureOpenAI(
     azure_endpoint=AZURE_OPENAI_ENDPOINT,
@@ -24,4 +24,9 @@ class EOBParser:
             temperature=0,
         )
 
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+
+        if not content:
+            raise ValueError("Model returned empty content")
+
+        return json.loads(content)

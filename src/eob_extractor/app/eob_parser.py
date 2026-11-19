@@ -4,7 +4,7 @@ from azure.ai.inference.models import SystemMessage, UserMessage
 
 from app.foundry_client import get_client
 
-from app.config import FOUNDRY_MODEL
+from eob_extractor.app.config import FOUNDRY_MODEL
 
 
 class EOBParser:

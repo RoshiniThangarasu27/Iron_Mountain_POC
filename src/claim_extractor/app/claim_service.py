@@ -1,7 +1,7 @@
 import json
 import os
 
-from app.utils.storage import (
+from claim_extractor.app.storage import (
     get_claim_repository
 )
 
@@ -15,14 +15,9 @@ class ClaimService:
         raw_edi
     ):
 
-        repository = (
-            get_claim_repository()
-        )
+        repository = get_claim_repository()
 
-        claim["source_file"] = (
-            file_name
-        )
-
+        claim["source_file"] = file_name
         claim["raw_edi"] = raw_edi
 
         claim_id = claim.get(
@@ -35,11 +30,17 @@ class ClaimService:
             f"{claim_id}.json"
         )
 
+        # Prevent overwrite
+        if os.path.exists(output_file):
+            raise ValueError(
+                f"Claim {claim_id} already exists in repository."
+            )
+
         with open(
             output_file,
-            "w"
+            "w",
+            encoding="utf-8"
         ) as f:
-
             json.dump(
                 claim,
                 f,
@@ -51,26 +52,23 @@ class ClaimService:
     @staticmethod
     def get_all_claims():
 
-        repository = (
-            get_claim_repository()
-        )
+        repository = get_claim_repository()
 
         claims = []
 
-        for file in os.listdir(
-            repository
-        ):
+        for file in os.listdir(repository):
 
-            if file.endswith(
-                ".json"
-            ):
+            if file.endswith(".json"):
 
                 path = os.path.join(
                     repository,
                     file
                 )
 
-                with open(path) as f:
+                with open(
+                    path,
+                    encoding="utf-8"
+                ) as f:
 
                     claims.append(
                         json.load(f)

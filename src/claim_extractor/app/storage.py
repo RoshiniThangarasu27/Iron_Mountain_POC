@@ -9,6 +9,8 @@ class FolderType(str, Enum):
 def get_upload_folder(folder_type):
 
     folder = os.path.join(
+        "src",
+        "claim_extractor",
         "app",
         "uploads",
         folder_type.value
@@ -25,6 +27,8 @@ def get_upload_folder(folder_type):
 def get_claim_repository():
 
     folder = os.path.join(
+        "src",
+        "claim_extractor",
         "app",
         "repository",
         "claims"

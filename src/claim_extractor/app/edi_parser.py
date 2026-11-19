@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.services.claims.mapping_loader import (
+from claim_extractor.app.mapping_loader import (
     load_mapping
 )
 

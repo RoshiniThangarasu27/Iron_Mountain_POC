@@ -6,9 +6,11 @@ from eob_extractor.app.normalizer import Normalizer
 
 ocr = OCRExtractor()
 
-text = ocr.extract_text("sample_eob.pdf")
+text = ocr.extract("src/eob_extractor/tests/full_eob.png")
+print("OCR Output:")
+print(text)
 
-prompt = Path("app/prompts/extraction_prompt.txt").read_text()
+prompt = Path("src/app/prompts/extraction_prompt.txt").read_text()
 
 parser = EOBParser()
 

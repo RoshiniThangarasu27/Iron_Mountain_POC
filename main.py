@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers.claims import (
+from claim_extractor.claims import (
     router as claims_router
 )
 
