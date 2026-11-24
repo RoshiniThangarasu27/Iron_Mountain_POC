@@ -5,8 +5,10 @@ import { useMemo, useState } from "react";
 import { contentUrl } from "@/lib/api";
 import { useBulkDelete } from "@/lib/useBulkDelete";
 import { useDocuments } from "@/lib/useDocuments";
+import { useExtractionPolling } from "@/lib/useExtractionPolling";
 import { useSelection } from "@/lib/useSelection";
 import { formatBytes, formatDateTime } from "@/lib/format";
+import { ExtractionBadge } from "@/components/extraction/ExtractionBadge";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { ImageIcon } from "@/components/ui/Icons";
 import { EmptyState, ErrorState } from "@/components/ui/States";
@@ -19,6 +21,7 @@ export function EobGallery() {
   const ids = useMemo(() => items.map((d) => d.id), [items]);
   const selection = useSelection(ids);
   const bulk = useBulkDelete("eob_835", selection.selectedIds, removeManyLocal, selection.clear);
+  const extraction = useExtractionPolling(items);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((d) => d.id === selectedId) ?? null;
 
@@ -55,7 +58,6 @@ export function EobGallery() {
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {items.map((d) => {
-            const s = d.parsed_summary;
             const checked = selection.isSelected(d.id);
             return (
               <li key={d.id} className="relative">
@@ -89,10 +91,10 @@ export function EobGallery() {
                   <div className="min-w-0 space-y-0.5 p-3">
                     <p className="truncate text-sm font-medium text-slate-900" title={d.original_filename}>{d.original_filename}</p>
                     <p className="truncate text-xs text-slate-500">{formatDateTime(d.created_at)}</p>
-                    <p className="truncate text-xs text-slate-500">
-                      {formatBytes(d.file_size_bytes)}
-                      {s?.width ? ` · ${s.width}×${s.height}` : ""}
-                    </p>
+                    <p className="truncate text-xs text-slate-500">{formatBytes(d.file_size_bytes)}</p>
+                    <div className="pt-1.5">
+                      <ExtractionBadge status={extraction.statuses[d.id] ?? null} />
+                    </div>
                   </div>
                 </button>
               </li>
@@ -104,6 +106,8 @@ export function EobGallery() {
       {selected && (
         <EobPreviewModal
           doc={selected}
+          extraction={extraction.statuses[selected.id] ?? null}
+          onExtractionChange={(status) => extraction.setStatus(selected.id, status)}
           onClose={() => setSelectedId(null)}
           onDeleted={(id) => {
             setSelectedId(null);

@@ -1,38 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { contentUrl, deleteDocument, fetchDocumentText, type DocumentRecord } from "@/lib/api";
-import { describeDelimiter, formatBytes, formatCurrency, formatDateTime } from "@/lib/format";
+import { contentUrl, deleteDocument, fetchDocumentText, type DocumentRecord, type ExtractionStatus } from "@/lib/api";
+import { formatBytes, formatDateTime } from "@/lib/format";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { AlertIcon, DownloadIcon, SpinnerIcon, XIcon } from "@/components/ui/Icons";
+import { DownloadIcon, SpinnerIcon, XIcon } from "@/components/ui/Icons";
+import { ExtractionPanel } from "@/components/extraction/ExtractionPanel";
 import { Drawer } from "@/components/ui/Overlay";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type ViewMode = "segments" | "raw";
 
+const SEGMENT_TERMINATOR = "~";
+const ELEMENT_SEPARATOR = "*";
+
 interface Props {
+  extraction: ExtractionStatus | null;
+  onExtractionChange: (status: ExtractionStatus) => void;
   doc: DocumentRecord;
   onClose: () => void;
   onDeleted: (id: string) => void;
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-0.5 truncate text-sm text-slate-900">{children ?? "—"}</dd>
-    </div>
-  );
-}
-
-export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
+export function EdiPreviewDrawer({ doc, extraction, onExtractionChange, onClose, onDeleted }: Props) {
   const [text, setText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [mode, setMode] = useState<ViewMode>("segments");
-  const s = doc.parsed_summary ?? {};
-  const delimiters = s.delimiters;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,14 +43,11 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
 
   const segments = useMemo(() => {
     if (text == null) return [];
-    const terminator = delimiters?.segment || "~";
     return text
-      .split(terminator)
+      .split(SEGMENT_TERMINATOR)
       .map((seg) => seg.trim())
       .filter(Boolean);
-  }, [text, delimiters?.segment]);
-
-  const element = delimiters?.element || "*";
+  }, [text]);
 
   const handleDelete = async () => {
     setDeleteError(null);
@@ -69,10 +60,6 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
   };
 
   const titleId = `edi-drawer-${doc.id}`;
-  const isa = s.interchange ?? {};
-  const st = s.transaction_set ?? {};
-  const bht = s.beginning_of_transaction ?? {};
-  const gs = s.functional_group ?? {};
 
   return (
     <Drawer onClose={onClose} labelledBy={titleId}>
@@ -82,7 +69,6 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
             {doc.original_filename}
           </h2>
           <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-            <StatusBadge status={doc.status} />
             <span>{formatBytes(doc.file_size_bytes)}</span>
             <span aria-hidden>·</span>
             <span>{formatDateTime(doc.created_at)}</span>
@@ -94,64 +80,9 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        <section className="space-y-4 border-b border-slate-100 px-5 py-4">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-            <Field label="Segments">{s.segment_count ?? "—"}</Field>
-            <Field label="Claims (CLM)">{s.claim_count ?? "—"}</Field>
-            <Field label="Service lines">{s.service_line_count ?? "—"}</Field>
-            <Field label="Total charges">{formatCurrency(s.total_claim_charges)}</Field>
-            <Field label="Claim type">{s.claim_type ? <span className="capitalize">{s.claim_type}</span> : "—"}</Field>
-            <Field label="ISA control #">{isa.control_number}</Field>
-            <Field label="GS control #">{gs.control_number}</Field>
-            <Field label="ST control #">{st.control_number != null ? String(st.control_number) : "—"}</Field>
-            <Field label="Sender → Receiver">
-              {isa.sender_id || gs.sender_code ? `${isa.sender_id ?? gs.sender_code} → ${isa.receiver_id ?? gs.receiver_code ?? "?"}` : "—"}
-            </Field>
-            <Field label="BHT reference">{bht.reference_id}</Field>
-            <Field label="Version">{(st.implementation_reference as string | null) ?? gs.version ?? isa.version}</Field>
-            <Field label="Usage">{isa.usage_indicator === "P" ? "Production" : isa.usage_indicator === "T" ? "Test" : isa.usage_indicator}</Field>
-          </dl>
-
-          {delimiters && (
-            <p className="text-xs text-slate-500">
-              Delimiters: element {describeDelimiter(delimiters.element)} · component {describeDelimiter(delimiters.component)} ·
-              segment {describeDelimiter(delimiters.segment)}
-              {delimiters.repetition && <> · repetition {describeDelimiter(delimiters.repetition)}</>} ({delimiters.method.replace(/_/g, " ")})
-            </p>
-          )}
-
-          {s.claim_ids && s.claim_ids.length > 0 && (
-            <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Claim IDs (CLM01)</p>
-              <div className="flex flex-wrap gap-1.5">
-                {s.claim_ids.map((id, i) => (
-                  <span key={`${id}-${i}`} className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-700">{id}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {s.detected_loops && s.detected_loops.length > 0 && (
-            <details className="group">
-              <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-slate-500 hover:text-slate-700">
-                Detected loops ({s.detected_loops.length})
-              </summary>
-              <ul className="mt-2 grid gap-1 text-sm text-slate-700 sm:grid-cols-2">
-                {s.detected_loops.map((l) => <li key={l} className="font-mono text-xs">{l}</li>)}
-              </ul>
-            </details>
-          )}
-
-          {s.warnings && s.warnings.length > 0 && (
-            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="mb-1 flex items-center gap-1.5 font-medium"><AlertIcon width={16} height={16} /> Inspection notes</p>
-              <ul className="list-disc space-y-0.5 pl-6">
-                {s.warnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-          )}
-        </section>
-
+        <div className="border-b border-slate-100 px-5 py-4">
+          <ExtractionPanel documentId={doc.id} docType={doc.doc_type} status={extraction} onStatusChange={onExtractionChange} />
+        </div>
         <section className="px-5 py-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-slate-900">File content</h3>
@@ -179,7 +110,7 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
           ) : (
             <ol className="max-h-[60vh] overflow-auto rounded-lg bg-slate-950 py-3 font-mono text-xs leading-relaxed">
               {segments.map((seg, i) => {
-                const idx = seg.indexOf(element);
+                const idx = seg.indexOf(ELEMENT_SEPARATOR);
                 const id = idx > 0 ? seg.slice(0, idx) : seg;
                 const rest = idx > 0 ? seg.slice(idx) : "";
                 return (
@@ -188,7 +119,7 @@ export function EdiPreviewDrawer({ doc, onClose, onDeleted }: Props) {
                     <span className="min-w-0 break-all text-slate-200">
                       <span className="font-semibold text-teal-300">{id}</span>
                       {rest}
-                      <span className="text-slate-500">{delimiters?.segment && delimiters.segment !== "\n" ? delimiters.segment : ""}</span>
+                      <span className="text-slate-500">{SEGMENT_TERMINATOR}</span>
                     </span>
                   </li>
                 );

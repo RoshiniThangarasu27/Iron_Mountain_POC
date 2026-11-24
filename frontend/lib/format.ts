@@ -29,14 +29,6 @@ export function formatCurrency(value: string | null | undefined): string {
   return Number.isFinite(n) ? n.toLocaleString(undefined, { style: "currency", currency: "USD" }) : value;
 }
 
-export function describeDelimiter(ch: string | null | undefined): string {
-  if (ch == null) return "—";
-  if (ch === "\n") return "newline";
-  if (ch === "\r") return "CR";
-  if (ch === "\t") return "tab";
-  return `"${ch}"`;
-}
-
 export function getExtension(name: string): string {
   const i = name.lastIndexOf(".");
   return i >= 0 ? name.slice(i).toLowerCase() : "";

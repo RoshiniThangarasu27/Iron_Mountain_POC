@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -15,7 +16,14 @@ from app.schemas.document import (
     DocumentRead,
     UploadResponse,
 )
+from app.schemas.extraction import (
+    TERMINAL_STATES,
+    ExtractionDetail,
+    ExtractionStatusItem,
+    ExtractionStatusRequest,
+)
 from app.services import documents as service
+from app.services import extraction
 from app.services.storage import StorageError, resolve_storage_path
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -61,7 +69,10 @@ def list_documents(
     db: Session = Depends(get_db),
 ):
     items, total = service.list_documents(db, doc_type, limit, offset)
-    return DocumentList(items=[DocumentRead.model_validate(d) for d in items], total=total, limit=limit, offset=offset)
+    statuses = extraction.get_statuses(db, items)
+    return DocumentList(
+        items=[extraction.to_read(d, statuses[d.id]) for d in items], total=total, limit=limit, offset=offset
+    )
 
 
 @router.post("/bulk-delete", response_model=BulkDeleteResponse)
@@ -69,9 +80,35 @@ def bulk_delete_documents(payload: BulkDeleteRequest, db: Session = Depends(get_
     return service.bulk_delete_documents(db, payload.ids, payload.doc_type)
 
 
+@router.post("/extraction-status", response_model=list[ExtractionStatusItem])
+def extraction_statuses(payload: ExtractionStatusRequest, db: Session = Depends(get_db)):
+    docs = list(db.scalars(select(Document).where(Document.id.in_(payload.ids))))
+    statuses = extraction.get_statuses(db, docs)
+    return [ExtractionStatusItem(document_id=d.id, extraction=statuses[d.id]) for d in docs]
+
+
 @router.get("/{doc_id}", response_model=DocumentRead)
 def get_document(doc_id: uuid.UUID, db: Session = Depends(get_db)):
-    return _get_or_404(db, doc_id)
+    doc = _get_or_404(db, doc_id)
+    return extraction.to_read(doc, extraction.get_statuses(db, [doc])[doc.id])
+
+
+@router.get("/{doc_id}/extraction", response_model=ExtractionDetail)
+def get_extraction(doc_id: uuid.UUID, db: Session = Depends(get_db)):
+    return extraction.get_detail(db, _get_or_404(db, doc_id))
+
+
+@router.post("/{doc_id}/extract", response_model=ExtractionDetail, status_code=status.HTTP_202_ACCEPTED)
+def start_extraction(doc_id: uuid.UUID, db: Session = Depends(get_db)):
+    doc = _get_or_404(db, doc_id)
+    current = extraction.get_statuses(db, [doc])[doc.id]
+    if current.state not in TERMINAL_STATES:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Extraction is already in progress")
+    try:
+        extraction.enqueue(db, doc)
+    except extraction.ExtractionQueueError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+    return extraction.get_detail(db, doc)
 
 
 @router.get("/{doc_id}/content", response_class=FileResponse)

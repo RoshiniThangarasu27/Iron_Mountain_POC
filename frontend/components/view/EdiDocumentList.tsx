@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 
 import { useBulkDelete } from "@/lib/useBulkDelete";
 import { useDocuments } from "@/lib/useDocuments";
+import { useExtractionPolling } from "@/lib/useExtractionPolling";
 import { useSelection } from "@/lib/useSelection";
 import { formatBytes, formatDateTime } from "@/lib/format";
+import { ExtractionBadge } from "@/components/extraction/ExtractionBadge";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { FileTextIcon } from "@/components/ui/Icons";
 import { EmptyState, ErrorState } from "@/components/ui/States";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 import { EdiPreviewDrawer } from "./EdiPreviewDrawer";
 import { ListToolbar } from "./ListToolbar";
@@ -19,6 +20,7 @@ export function EdiDocumentList() {
   const ids = useMemo(() => items.map((d) => d.id), [items]);
   const selection = useSelection(ids);
   const bulk = useBulkDelete("edi_837", selection.selectedIds, removeManyLocal, selection.clear);
+  const extraction = useExtractionPolling(items);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((d) => d.id === selectedId) ?? null;
 
@@ -63,14 +65,11 @@ export function EdiDocumentList() {
                 <th scope="col" className="w-full px-4 py-3">File</th>
                 <th scope="col" className="hidden px-4 py-3 md:table-cell">Uploaded</th>
                 <th scope="col" className="hidden px-4 py-3 text-right sm:table-cell">Size</th>
-                <th scope="col" className="px-4 py-3 text-right">Segments</th>
-                <th scope="col" className="px-4 py-3 text-right">Claims</th>
-                <th scope="col" className="hidden px-4 py-3 lg:table-cell">Status</th>
+                <th scope="col" className="px-4 py-3">Extraction</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map((d) => {
-                const s = d.parsed_summary;
                 const checked = selection.isSelected(d.id);
                 return (
                   <tr
@@ -102,15 +101,14 @@ export function EdiDocumentList() {
                         <div className="min-w-0">
                           <p className="truncate font-medium text-slate-900" title={d.original_filename}>{d.original_filename}</p>
                           <p className="truncate text-xs text-slate-500 md:hidden">{formatDateTime(d.created_at)}</p>
-                          {s?.claim_type && <p className="hidden truncate text-xs capitalize text-slate-500 md:block">837 {s.claim_type}</p>}
                         </div>
                       </div>
                     </td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-slate-600 md:table-cell">{formatDateTime(d.created_at)}</td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600 sm:table-cell">{formatBytes(d.file_size_bytes)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-900">{s?.segment_count ?? "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-900">{s?.claim_count ?? "—"}</td>
-                    <td className="hidden px-4 py-3 lg:table-cell"><StatusBadge status={d.status} /></td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <ExtractionBadge status={extraction.statuses[d.id] ?? null} />
+                    </td>
                   </tr>
                 );
               })}
@@ -122,6 +120,8 @@ export function EdiDocumentList() {
       {selected && (
         <EdiPreviewDrawer
           doc={selected}
+          extraction={extraction.statuses[selected.id] ?? null}
+          onExtractionChange={(status) => extraction.setStatus(selected.id, status)}
           onClose={() => setSelectedId(null)}
           onDeleted={(id) => {
             setSelectedId(null);

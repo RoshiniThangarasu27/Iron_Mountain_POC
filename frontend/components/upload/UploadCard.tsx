@@ -1,9 +1,11 @@
 "use client";
 
-import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { ApiError, MAX_UPLOAD_MB, uploadDocuments, type DocType, type UploadResponse } from "@/lib/api";
 import { formatBytes, getExtension } from "@/lib/format";
+import { useExtractionPolling } from "@/lib/useExtractionPolling";
+import { ExtractionBadge } from "@/components/extraction/ExtractionBadge";
 import { AlertIcon, CheckIcon, InfoIcon, SpinnerIcon, UploadIcon, XIcon } from "@/components/ui/Icons";
 
 interface SelectedFile {
@@ -51,17 +53,20 @@ export function UploadCard({ docType, title, subtitle, extensions, acceptMime = 
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<UploadResponse | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const uploadedDocs = useMemo(() => result?.documents ?? [], [result]);
+  const extraction = useExtractionPolling(uploadedDocs);
   const a = ACCENTS[accent];
   const maxBytes = MAX_UPLOAD_MB * 1024 * 1024;
 
   const addFiles = (list: FileList | null) => {
-    if (!list || list.length === 0) return;
+    const files = list ? Array.from(list) : [];
+    if (files.length === 0) return;
     setResult(null);
     setRequestError(null);
     setSelected((prev) => {
       const seen = new Set(prev.map((s) => s.key));
       const next = [...prev];
-      for (const file of Array.from(list)) {
+      for (const file of files) {
         const key = fileKey(file);
         if (seen.has(key)) continue;
         seen.add(key);
@@ -105,7 +110,8 @@ export function UploadCard({ docType, title, subtitle, extensions, acceptMime = 
   };
 
   const accept = [...extensions, ...acceptMime].join(",");
-  const warningsByDoc = new Map(result?.warnings.map((w) => [w.document_id, w]) ?? []);
+  const warningsByDoc = new Map<string, UploadResponse["warnings"]>();
+  for (const w of result?.warnings ?? []) warningsByDoc.set(w.document_id, [...(warningsByDoc.get(w.document_id) ?? []), w]);
 
   return (
     <section className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -261,8 +267,7 @@ export function UploadCard({ docType, title, subtitle, extensions, acceptMime = 
             </div>
             <ul className="max-h-64 divide-y divide-slate-100 overflow-y-auto text-sm">
               {result.documents.map((d) => {
-                const warn = warningsByDoc.get(d.id);
-                const s = d.parsed_summary;
+                const warns = warningsByDoc.get(d.id) ?? [];
                 return (
                   <li key={d.id} className="flex items-start gap-2 px-3 py-2">
                     <CheckIcon className="mt-0.5 shrink-0 text-emerald-600" width={16} height={16} />
@@ -270,15 +275,16 @@ export function UploadCard({ docType, title, subtitle, extensions, acceptMime = 
                       <p className="truncate text-slate-800" title={d.original_filename}>{d.original_filename}</p>
                       <p className="text-xs text-slate-500">
                         {formatBytes(d.file_size_bytes)}
-                        {d.doc_type === "edi_837" && s && ` · ${s.segment_count ?? 0} segments · ${s.claim_count ?? 0} claims`}
-                        {d.doc_type === "eob_835" && s?.width && ` · ${s.width}×${s.height} ${s.format ?? ""}`}
-                        {d.status === "failed" && " · not recognized as X12"}
                       </p>
-                      {warn && (
-                        <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-700">
-                          <InfoIcon width={12} height={12} /> Duplicate: {warn.message.toLowerCase()}
+                      {warns.map((w, i) => (
+                        <p key={i} className="mt-0.5 flex items-center gap-1 text-xs text-amber-700">
+                          <InfoIcon width={12} height={12} className="shrink-0" />
+                          {w.duplicate_of.length > 0 ? `Duplicate: ${w.message.toLowerCase()}` : w.message}
                         </p>
-                      )}
+                      ))}
+                      <div className="mt-1">
+                        <ExtractionBadge status={extraction.statuses[d.id] ?? null} />
+                      </div>
                     </div>
                   </li>
                 );

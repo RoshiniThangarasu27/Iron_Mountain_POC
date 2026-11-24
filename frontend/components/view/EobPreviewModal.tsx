@@ -2,22 +2,23 @@
 
 import { useState } from "react";
 
-import { contentUrl, deleteDocument, type DocumentRecord } from "@/lib/api";
+import { contentUrl, deleteDocument, type DocumentRecord, type ExtractionStatus } from "@/lib/api";
 import { formatBytes, formatDateTime } from "@/lib/format";
+import { ExtractionPanel } from "@/components/extraction/ExtractionPanel";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { DownloadIcon, ExternalIcon, XIcon } from "@/components/ui/Icons";
 import { Modal } from "@/components/ui/Overlay";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 interface Props {
   doc: DocumentRecord;
+  extraction: ExtractionStatus | null;
+  onExtractionChange: (status: ExtractionStatus) => void;
   onClose: () => void;
   onDeleted: (id: string) => void;
 }
 
-export function EobPreviewModal({ doc, onClose, onDeleted }: Props) {
+export function EobPreviewModal({ doc, extraction, onExtractionChange, onClose, onDeleted }: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const s = doc.parsed_summary ?? {};
   const titleId = `eob-modal-${doc.id}`;
 
   const handleDelete = async () => {
@@ -33,9 +34,7 @@ export function EobPreviewModal({ doc, onClose, onDeleted }: Props) {
   const rows: [string, string][] = [
     ["Uploaded", formatDateTime(doc.created_at)],
     ["Size", formatBytes(doc.file_size_bytes)],
-    ["Dimensions", s.width ? `${s.width} × ${s.height} px` : "—"],
-    ["Format", s.format ?? doc.mime_type],
-    ["Color mode", s.mode ?? "—"],
+    ["Format", doc.mime_type],
     ["SHA-256", doc.sha256_hash.slice(0, 16) + "…"],
   ];
 
@@ -50,13 +49,14 @@ export function EobPreviewModal({ doc, onClose, onDeleted }: Props) {
         </button>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-slate-900 p-4">
           <img src={contentUrl(doc.id)} alt={doc.original_filename} className="max-h-[75vh] max-w-full rounded object-contain shadow-lg" />
         </div>
 
-        <aside className="w-full shrink-0 space-y-4 border-t border-slate-200 p-5 lg:w-72 lg:border-l lg:border-t-0">
-          <StatusBadge status={doc.status} />
+        <aside className="w-full shrink-0 space-y-5 border-t border-slate-200 p-5 lg:w-104 lg:overflow-y-auto lg:border-l lg:border-t-0">
+          <ExtractionPanel documentId={doc.id} docType={doc.doc_type} status={extraction} onStatusChange={onExtractionChange} />
+          <hr className="border-slate-200" />
           <dl className="space-y-2 text-sm">
             {rows.map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3">

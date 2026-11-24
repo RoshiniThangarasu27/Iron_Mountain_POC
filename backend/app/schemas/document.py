@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.document import DocStatus, DocType
+from app.models.document import DocType
+from app.schemas.extraction import ExtractionStatus
 
 
 class DocumentRead(BaseModel):
@@ -18,9 +18,8 @@ class DocumentRead(BaseModel):
     mime_type: str
     file_size_bytes: int
     sha256_hash: str
-    status: DocStatus
-    parsed_summary: dict[str, Any] | None = None
     created_at: datetime
+    extraction: ExtractionStatus | None = None
 
 
 class DocumentList(BaseModel):

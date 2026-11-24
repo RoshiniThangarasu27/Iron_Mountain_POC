@@ -2,41 +2,77 @@ export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://loc
 export const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB || 25);
 
 export type DocType = "edi_837" | "eob_835";
-export type DocStatus = "uploaded" | "parsed" | "failed";
 
-export interface EdiDelimiters {
-  element: string;
-  component: string | null;
-  repetition: string | null;
-  segment: string;
-  method: string;
+export type ExtractionState = "not_started" | "queued" | "running" | "retrying" | "succeeded" | "failed";
+
+export const TERMINAL_EXTRACTION_STATES: ExtractionState[] = ["not_started", "succeeded", "failed"];
+
+export interface ExtractionStatus {
+  task_id: string | null;
+  state: ExtractionState;
+  celery_state: string | null;
+  step: string | null;
+  error: string | null;
+  retries: number | null;
+  requested_at: string | null;
+  finished_at: string | null;
 }
 
-export interface EdiSummary {
-  is_x12?: boolean;
-  delimiters?: EdiDelimiters;
-  segment_count?: number;
-  segment_counts?: Record<string, number>;
-  interchange?: Record<string, string | null>;
-  functional_group?: Record<string, string | null>;
-  transaction_set?: Record<string, string | number | null>;
-  beginning_of_transaction?: Record<string, string | null>;
-  claim_type?: string | null;
-  claim_count?: number;
-  claim_ids?: string[];
-  total_claim_charges?: string | null;
-  service_line_count?: number;
-  hierarchical_levels?: Record<string, number>;
-  detected_loops?: string[];
-  envelope?: Record<string, boolean>;
-  warnings?: string[];
+export interface ExtractedClaim {
+  claim_id?: string;
+  claim_amount?: string;
+  patient_name?: string;
+  patient_first_name?: string;
+  patient_last_name?: string;
+  member_id?: string;
+  provider_name?: string;
+  provider_npi?: string;
+  date_of_service?: string;
+  date_of_service_from?: string;
+  date_of_service_to?: string;
+  service_lines?: { procedure_code?: string; line_charge_amount?: string; units?: string }[];
 }
 
-export interface ImageSummary {
-  format?: string;
-  width?: number;
-  height?: number;
-  mode?: string;
+export interface EobClaim {
+  claim_id?: string | null;
+  patient_id?: string | null;
+  patient_name?: string | null;
+  provider_name?: string | null;
+  provider_npi?: string | null;
+  date_of_service_from?: string | null;
+  date_of_service_to?: string | null;
+  service_code?: string | null;
+  modifier?: string | null;
+  units?: number | null;
+  billed_amount?: number | null;
+  allowed_amount?: number | null;
+  paid_amount?: number | null;
+  patient_responsibility?: number | null;
+  confidence?: Record<string, number | null>;
+}
+
+export interface EobPayload {
+  payment_info?: { payment_date?: string | null; payment_reference?: string | null };
+  claims?: EobClaim[];
+  remark_codes?: { code?: string | null; description?: string | null }[];
+  document_confidence?: number | null;
+  requires_human_review?: boolean;
+}
+
+export interface ExtractionResult {
+  document_id: string;
+  doc_type: DocType;
+  extractor: "claim_extractor" | "eob_extractor";
+  duration_ms: number;
+  claim?: ExtractedClaim;
+  payload?: EobPayload;
+  review?: { required: boolean; reason: string | null };
+  validation_errors?: Record<string, string[]>;
+  model?: string;
+}
+
+export interface ExtractionDetail extends ExtractionStatus {
+  result: ExtractionResult | null;
 }
 
 export interface DocumentRecord {
@@ -48,9 +84,8 @@ export interface DocumentRecord {
   mime_type: string;
   file_size_bytes: number;
   sha256_hash: string;
-  status: DocStatus;
-  parsed_summary: (EdiSummary & ImageSummary) | null;
   created_at: string;
+  extraction: ExtractionStatus | null;
 }
 
 export interface DocumentList {
@@ -126,6 +161,30 @@ export function bulkDeleteDocuments(ids: string[], docType?: DocType): Promise<B
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, doc_type: docType ?? null }),
   });
+}
+
+export function getExtractionStatuses(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<{ document_id: string; extraction: ExtractionStatus }[]> {
+  return request(`/api/documents/extraction-status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+    signal,
+  });
+}
+
+export function getExtraction(id: string, signal?: AbortSignal): Promise<ExtractionDetail> {
+  return request<ExtractionDetail>(`/api/documents/${id}/extraction`, { signal });
+}
+
+export function startExtraction(id: string): Promise<ExtractionDetail> {
+  return request<ExtractionDetail>(`/api/documents/${id}/extract`, { method: "POST" });
+}
+
+export function isExtractionActive(status: ExtractionStatus | null | undefined): boolean {
+  return !!status && !TERMINAL_EXTRACTION_STATES.includes(status.state);
 }
 
 export function contentUrl(id: string, download = false): string {

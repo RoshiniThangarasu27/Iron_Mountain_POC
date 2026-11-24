@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from PIL import Image, UnidentifiedImageError
 
@@ -74,12 +73,10 @@ def sniff_text(path: Path, sample_size: int = 64 * 1024) -> str:
     return "text/plain"
 
 
-def inspect_image(path: Path) -> tuple[str, dict[str, Any]]:
+def validate_image(path: Path) -> str:
     try:
         with Image.open(path) as img:
             fmt = (img.format or "").upper()
-            width, height = img.size
-            mode = img.mode
             img.verify()
     except UnidentifiedImageError as exc:
         raise ValidationError("File is not a recognizable image (expected PNG, JPEG or WEBP)") from exc
@@ -91,4 +88,4 @@ def inspect_image(path: Path) -> tuple[str, dict[str, Any]]:
     mime = PIL_FORMAT_TO_MIME.get(fmt)
     if not mime:
         raise ValidationError(f"Image format '{fmt or 'unknown'}' is not allowed. Allowed: PNG, JPEG, WEBP")
-    return mime, {"format": fmt, "width": width, "height": height, "mode": mode}
+    return mime
