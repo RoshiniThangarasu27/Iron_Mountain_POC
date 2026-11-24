@@ -1,34 +1,68 @@
-You are a healthcare EOB extraction engine.
+Extract the document into the following EXACT JSON schema.
 
-Task:
-Extract data from an Explanation of Benefits document.
+Rules:
+- Return ONLY valid JSON.
+- Do not add, remove, or rename fields.
+- Extract all possible fields even in the schema it's not present
+- Use null when a value is unavailable.
+- Confidence values must be between 0 and 1.
+- Confidence is required only for:
+  - patient_id
+  - claim_id
+  - date_of_service
+  - service_code
 
-Requirements:
+Set requires_human_review=true when:
+- any matching field confidence is below 0.80
+- document quality is poor
+- the claim information is ambiguous or unclear
 
-1. Return ONLY JSON.
-2. Do not return markdown.
-3. Do not explain your answer.
-4. Do not invent fields.
-5. Missing values must be null.
-6. Preserve monetary values exactly.
+Document confidence should represent overall extraction reliability.
+Extract all claims found in the document.
+Capture every available value that maps to a schema field, even if some fields are optional or missing in certain claims.
 
-Target schema:
+Schema:
 
 {
-  "payer_name": null,
-  "payment_date": null,
-  "check_number": null,
-  "claims": []
-}
+  "payment_info": {
+    "payment_date": "",
+    "payment_reference": ""
+  },
+  "claims": [
+    {
+      "claim_id": "",
+      "patient_id": "",
+      "patient_name": "",
 
-Each claim:
+      "provider_name": "",
+      "provider_npi": "",
 
-{
-  "claim_number": null,
-  "patient_name": null,
-  "member_id": null,
-  "billed_amount": null,
-  "allowed_amount": null,
-  "paid_amount": null,
-  "service_lines": []
+      "date_of_service_from": "",
+      "date_of_service_to": "",
+
+      "service_code": "",
+      "modifier": "",
+      "units": 0,
+
+      "billed_amount": 0.0,
+      "allowed_amount": 0.0,
+      "paid_amount": 0.0,
+      "patient_responsibility": 0.0,
+
+      "confidence": {
+        "patient_id": 0.0,
+        "claim_id": 0.0,
+        "date_of_service": 0.0,
+        "service_code": 0.0
+      }
+    }
+  ],
+  "remark_codes": [
+  {
+    "code": "",
+    "description": ""
+  }
+],
+  "document_confidence": 0.0,
+  "requires_human_review": false
 }

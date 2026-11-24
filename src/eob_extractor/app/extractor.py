@@ -14,6 +14,8 @@ class OCRExtractor:
             credential=AzureKeyCredential(DOCUMENT_INTELLIGENCE_KEY),
         )
 
+    print(f"Endpoint = [{DOCUMENT_INTELLIGENCE_ENDPOINT}]")
+
     def extract(self, pdf_path: str) -> str:
 
         with open(pdf_path, "rb") as f:

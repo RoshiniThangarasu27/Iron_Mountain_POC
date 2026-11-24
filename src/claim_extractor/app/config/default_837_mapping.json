@@ -3,49 +3,59 @@
     "segment": "CLM",
     "element": 1
   },
+
   "claim_amount": {
     "segment": "CLM",
     "element": 2
   },
+
   "provider_name": {
     "segment": "NM1",
     "qualifier": "85",
     "element": 3
   },
+
   "provider_npi": {
     "segment": "NM1",
     "qualifier": "85",
     "element": 9
   },
+
   "patient_last_name": {
     "segment": "NM1",
     "qualifier": "IL",
     "element": 3
   },
+
   "patient_first_name": {
     "segment": "NM1",
     "qualifier": "IL",
     "element": 4
   },
+
   "member_id": {
     "segment": "NM1",
     "qualifier": "IL",
     "element": 9
   },
-  "service_date": {
+
+  "date_of_service": {
     "segment": "DTP",
     "qualifier": "472",
     "element": 3
   },
+
   "procedure_code": {
     "segment": "SV1",
     "element": 1,
     "remove_prefix": "HC:"
   },
+
   "line_charge_amount": {
     "segment": "SV1",
     "element": 2
   },
+
   "units": {
     "segment": "SV1",
     "element": 4

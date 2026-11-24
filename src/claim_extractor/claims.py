@@ -4,16 +4,16 @@ from fastapi import APIRouter
 from fastapi import UploadFile
 from fastapi import File
 
-from claim_extractor.app.storage import (
+from src.claim_extractor.app.storage import (
     get_upload_folder,
     FolderType
 )
 
-from claim_extractor.app.edi_parser import (
+from src.claim_extractor.app.edi_parser import (
     parse_837
 )
 
-from claim_extractor.app.claim_service import (
+from src.claim_extractor.app.claim_service import (
     ClaimService
 )
 

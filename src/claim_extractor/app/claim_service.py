@@ -1,7 +1,7 @@
 import json
 import os
 
-from claim_extractor.app.storage import (
+from src.claim_extractor.app.storage import (
     get_claim_repository
 )
 

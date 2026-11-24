@@ -1,11 +1,28 @@
+from datetime import datetime
 from typing import Any
 
-from claim_extractor.app.mapping_loader import (
+from src.claim_extractor.app.mapping_loader import (
     load_mapping
 )
 
 
-def parse_837(edi_text):
+def format_edi_date(date_str: str) -> str:
+    """
+    Convert:
+        20031014 -> 10/14/03
+    """
+
+    try:
+        return datetime.strptime(
+            date_str,
+            "%Y%m%d"
+        ).strftime("%m/%d/%y")
+
+    except Exception:
+        return date_str
+
+
+def parse_837(edi_text: str) -> dict[str, Any]:
 
     mapping = load_mapping()
 
@@ -14,8 +31,6 @@ def parse_837(edi_text):
     }
 
     segments = edi_text.split("~")
-
-    current_service_line = None
 
     for segment in segments:
 
@@ -29,7 +44,7 @@ def parse_837(edi_text):
         segment_name = fields[0]
 
         # ------------------------
-        # Claim Header Extraction
+        # Header Extraction
         # ------------------------
 
         for field_name, config in mapping.items():
@@ -57,13 +72,12 @@ def parse_837(edi_text):
             value = fields[position]
 
             if "remove_prefix" in config:
-
                 value = value.replace(
                     config["remove_prefix"],
                     ""
                 )
 
-            # Service line fields handled separately
+            # Service line values handled separately
             if field_name in [
                 "procedure_code",
                 "line_charge_amount",
@@ -71,7 +85,55 @@ def parse_837(edi_text):
             ]:
                 continue
 
-            claim[field_name] = value
+            # ------------------------
+            # Service Date Handling
+            # ------------------------
+
+            if field_name == "date_of_service":
+
+                # Original value
+                claim["date_of_service"] = value
+
+                # RD8 Date Range
+                if "-" in value:
+
+                    dos_from, dos_to = value.split(
+                        "-",
+                        1
+                    )
+
+                    claim[
+                        "date_of_service_from"
+                    ] = format_edi_date(
+                        dos_from
+                    )
+
+                    claim[
+                        "date_of_service_to"
+                    ] = format_edi_date(
+                        dos_to
+                    )
+
+                # D8 Single Date
+                else:
+
+                    formatted_date = (
+                        format_edi_date(
+                            value
+                        )
+                    )
+
+                    claim[
+                        "date_of_service_from"
+                    ] = formatted_date
+
+                    claim[
+                        "date_of_service_to"
+                    ] = formatted_date
+
+            else:
+
+                claim[field_name] = value
 
         # ------------------------
         # Service Line Extraction
@@ -85,12 +147,21 @@ def parse_837(edi_text):
 
             if len(fields) > 1:
 
+                procedure_code = fields[1]
+
+                if procedure_code.startswith(
+                    "HC:"
+                ):
+                    procedure_code = (
+                        procedure_code.replace(
+                            "HC:",
+                            ""
+                        )
+                    )
+
                 service_line[
                     "procedure_code"
-                ] = (
-                    fields[1]
-                    .replace("HC:", "")
-                )
+                ] = procedure_code
 
             # Charge Amount
 
@@ -110,15 +181,24 @@ def parse_837(edi_text):
 
             claim[
                 "service_lines"
-            ].append(
-                service_line
-            )
+            ].append(service_line)
 
-    # Build patient name
+    # ------------------------
+    # Patient Name
+    # ------------------------
+
+    first_name = claim.get(
+        "patient_first_name",
+        ""
+    )
+
+    last_name = claim.get(
+        "patient_last_name",
+        ""
+    )
 
     claim["patient_name"] = (
-        f"{claim.get('patient_first_name','')} "
-        f"{claim.get('patient_last_name','')}"
+        f"{first_name} {last_name}"
     ).strip()
 
     return claim

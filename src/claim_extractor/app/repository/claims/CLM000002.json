@@ -1,0 +1,22 @@
+{
+    "service_lines": [
+        {
+            "procedure_code": "K0823",
+            "line_charge_amount": "150.00",
+            "units": "1"
+        }
+    ],
+    "provider_name": "ACME PHYSICIANS INC",
+    "provider_npi": "1234567890",
+    "patient_last_name": "COMPTON",
+    "patient_first_name": "ZOE",
+    "member_id": "1223345XXX",
+    "claim_id": "CLM000002",
+    "claim_amount": "150.00",
+    "date_of_service": "20080402",
+    "date_of_service_from": "04/02/08",
+    "date_of_service_to": "04/02/08",
+    "patient_name": "ZOE COMPTON",
+    "source_file": "CLM000002.edi.txt",
+    "raw_edi": "ISA*00*          *00*          *ZZ*SENDER01       *ZZ*RECEIVER01     *080827*1200*^*00501*000000002*1*T*:~\r\nGS*HC*SENDER01*RECEIVER01*20080827*1200*2*X*005010X222A1~\r\nST*837*0002*005010X222A1~\r\nBHT*0019*00*CLM000002*20080827*1200*CH~\r\nNM1*85*2*ACME PHYSICIANS INC*****XX*1234567890~\r\nNM1*IL*1*COMPTON*ZOE****MI*1223345XXX~\r\nCLM*CLM000002*150.00***11:B:1*Y*A*Y*Y~\r\nDTP*472*D8*20080402~\r\nLX*1~\r\nSV1*HC:K0823*150.00*UN*1***1~\r\nSE*10*0002~\r\nGE*1*2~\r\nIEA*1*000000002~"
+}

@@ -9,9 +9,18 @@ class Normalizer:
 
     def normalize(self, payload):
 
-        text = str(payload).lower()
+        # If payload is already a dict, keep it as a dict
+        if isinstance(payload, dict):
+            return payload
 
-        for old, new in NORMALIZATION_MAP.items():
-            text = text.replace(old, new)
+        # If payload is a JSON string, convert to dict
+        if isinstance(payload, str):
 
-        return text
+            import json
+
+            try:
+                payload = json.loads(payload)
+            except Exception:
+                return payload
+
+        return payload

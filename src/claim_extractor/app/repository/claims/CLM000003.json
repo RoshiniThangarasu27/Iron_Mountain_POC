@@ -1,0 +1,22 @@
+{
+    "service_lines": [
+        {
+            "procedure_code": "E1399",
+            "line_charge_amount": "150.00",
+            "units": "1"
+        }
+    ],
+    "provider_name": "ACME PHYSICIANS INC",
+    "provider_npi": "1234567890",
+    "patient_last_name": "MURTAUGH",
+    "patient_first_name": "FLORIAN",
+    "member_id": "1223346XXX",
+    "claim_id": "CLM000003",
+    "claim_amount": "150.00",
+    "date_of_service": "20070501",
+    "date_of_service_from": "05/01/07",
+    "date_of_service_to": "05/01/07",
+    "patient_name": "FLORIAN MURTAUGH",
+    "source_file": "CLM000003.edi.txt",
+    "raw_edi": "ISA*00*          *00*          *ZZ*SENDER01       *ZZ*RECEIVER01     *080827*1200*^*00501*000000003*1*T*:~\r\nGS*HC*SENDER01*RECEIVER01*20080827*1200*3*X*005010X222A1~\r\nST*837*0003*005010X222A1~\r\nBHT*0019*00*CLM000003*20080827*1200*CH~\r\nNM1*85*2*ACME PHYSICIANS INC*****XX*1234567890~\r\nNM1*IL*1*MURTAUGH*FLORIAN****MI*1223346XXX~\r\nCLM*CLM000003*150.00***11:B:1*Y*A*Y*Y~\r\nDTP*472*D8*20070501~\r\nLX*1~\r\nSV1*HC:E1399*150.00*UN*1***1~\r\nSE*10*0003~\r\nGE*1*3~\r\nIEA*1*000000003~"
+}
