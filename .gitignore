@@ -22,3 +22,75 @@ storage/
 .DS_Store
 .idea/
 .vscode/
+# Environment variables / secrets
+.env
+.env.*
+*.env
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database files
+*.db
+claims.db
+
+# Upload folders
+uploads/
+temp/
+tmp/
+
+# Logs
+*.log
+
+# IDE settings
+.vscode/
+.idea/
+
+
+# Build folders
+build/
+dist/
+
+# Coverage & testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Azure credentials
+azure.json
+service_principal.json
+credentials.json
+
+# Secrets / keys
+secrets.json
+config.local.json
+# Byte-compiled / C extensions / Distribution
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+
+# Unit test / coverage & type checkers
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Jupyter / IDE & OS files
+.ipynb_checkpoints
+.vscode/
+.idea/
+.DS_Store

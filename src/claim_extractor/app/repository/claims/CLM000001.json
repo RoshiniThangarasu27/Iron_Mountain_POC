@@ -1,0 +1,22 @@
+{
+    "service_lines": [
+        {
+            "procedure_code": "E1390",
+            "line_charge_amount": "180.00",
+            "units": "1"
+        }
+    ],
+    "provider_name": "ACME PHYSICIANS INC",
+    "provider_npi": "1234567890",
+    "patient_last_name": "BENSON",
+    "patient_first_name": "RONALDO",
+    "member_id": "1223344XXX",
+    "claim_id": "CLM000001",
+    "claim_amount": "180.00",
+    "date_of_service": "20080701-20080710",
+    "date_of_service_from": "07/01/08",
+    "date_of_service_to": "07/10/08",
+    "patient_name": "RONALDO BENSON",
+    "source_file": "CLM000001.edi.txt",
+    "raw_edi": "ISA*00*          *00*          *ZZ*SENDER01       *ZZ*RECEIVER01     *080827*1200*^*00501*000000001*1*T*:~\r\nGS*HC*SENDER01*RECEIVER01*20080827*1200*1*X*005010X222A1~\r\nST*837*0001*005010X222A1~\r\nBHT*0019*00*CLM000001*20080827*1200*CH~\r\nNM1*85*2*ACME PHYSICIANS INC*****XX*1234567890~\r\nNM1*IL*1*BENSON*RONALDO****MI*1223344XXX~\r\nCLM*CLM000001*180.00***11:B:1*Y*A*Y*Y~\r\nDTP*472*RD8*20080701-20080710~\r\nLX*1~\r\nSV1*HC:E1390*180.00*UN*1***1~\r\nSE*10*0001~\r\nGE*1*1~\r\nIEA*1*000000001~"
+}
