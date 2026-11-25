@@ -9,6 +9,7 @@ import { useExtractionPolling } from "@/lib/useExtractionPolling";
 import { useSelection } from "@/lib/useSelection";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { ExtractionBadge } from "@/components/extraction/ExtractionBadge";
+import { MatchingBadge } from "@/components/matching/MatchingBadge";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { ImageIcon } from "@/components/ui/Icons";
 import { EmptyState, ErrorState } from "@/components/ui/States";
@@ -92,8 +93,9 @@ export function EobGallery() {
                     <p className="truncate text-sm font-medium text-slate-900" title={d.original_filename}>{d.original_filename}</p>
                     <p className="truncate text-xs text-slate-500">{formatDateTime(d.created_at)}</p>
                     <p className="truncate text-xs text-slate-500">{formatBytes(d.file_size_bytes)}</p>
-                    <div className="pt-1.5">
+                    <div className="flex flex-wrap gap-1 pt-1.5">
                       <ExtractionBadge status={extraction.statuses[d.id] ?? null} />
+                      <MatchingBadge status={extraction.matching[d.id] ?? null} />
                     </div>
                   </div>
                 </button>
@@ -108,6 +110,9 @@ export function EobGallery() {
           doc={selected}
           extraction={extraction.statuses[selected.id] ?? null}
           onExtractionChange={(status) => extraction.setStatus(selected.id, status)}
+          matching={extraction.matching[selected.id] ?? null}
+          onMatchingChange={(status) => extraction.setMatching(selected.id, status)}
+          onReviewed={() => extraction.refresh([selected.id])}
           onClose={() => setSelectedId(null)}
           onDeleted={(id) => {
             setSelectedId(null);

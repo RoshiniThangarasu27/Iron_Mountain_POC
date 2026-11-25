@@ -75,6 +75,127 @@ export interface ExtractionDetail extends ExtractionStatus {
   result: ExtractionResult | null;
 }
 
+export interface MatchingSummary {
+  claims: number;
+  auto_matched: number;
+  needs_review: number;
+  unmatched: number;
+  confirmed: number;
+  no_match: number;
+  skipped: boolean;
+  skip_reason: string | null;
+  stale: boolean;
+}
+
+export interface MatchingStatus extends ExtractionStatus {
+  summary: MatchingSummary | null;
+}
+
+export type EffectiveMatchStatus = "auto_matched" | "needs_review" | "unmatched" | "confirmed" | "no_match";
+
+export const MATCH_WEIGHTS = {
+  patient_name: 20,
+  date_of_service: 15,
+  service_code: 10,
+  billed_amount: 10,
+  provider_name: 5,
+} as const;
+
+export const AUTO_MATCH_THRESHOLD = 85;
+export const REVIEW_THRESHOLD = 60;
+
+export interface MatchInput {
+  patient_id: string | null;
+  claim_id: string | null;
+  patient_name: string | null;
+  date_of_service_from: string | null;
+  date_of_service_to: string | null;
+  service_code: string | null;
+  billed_amount: number | string | null;
+  paid_amount: number | string | null;
+  provider_name: string | null;
+}
+
+export interface CandidateClaim {
+  claim_id: string | null;
+  member_id: string | null;
+  patient_name: string | null;
+  date_of_service_from: string | null;
+  date_of_service_to: string | null;
+  claim_amount: string | null;
+  provider_name: string | null;
+  provider_npi: string | null;
+  service_lines: { procedure_code?: string; line_charge_amount?: string; units?: string }[];
+}
+
+export interface MatchCandidate {
+  document_id: string | null;
+  filename: string | null;
+  claim_id: string | null;
+  score: number;
+  status: "AUTO_MATCH" | "REVIEW" | "NO_MATCH";
+  matched_on: string[];
+  score_breakdown: Partial<Record<keyof typeof MATCH_WEIGHTS, number>>;
+  identifier_matches: string[];
+  identifier_conflicts: { field: string; label: string; eob: string | null; claim: string | null }[];
+  claim: CandidateClaim;
+}
+
+export interface ClaimReview {
+  claim_index: number;
+  decision: "accepted" | "no_match";
+  edi_document_id: string | null;
+  edi_claim_id: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClaimMatchItem {
+  index: number;
+  input: MatchInput;
+  best_match: MatchCandidate | null;
+  candidates: MatchCandidate[];
+  hitl: { requires_human_review?: boolean; match_score?: number; reasons?: string[] };
+  effective_status: EffectiveMatchStatus;
+  review: ClaimReview | null;
+}
+
+export interface MatchingDetail extends MatchingStatus {
+  matched_at: string | null;
+  repository_size: number | null;
+  forced: boolean;
+  claims: ClaimMatchItem[];
+}
+
+export interface LinkedClaim {
+  document_id: string | null;
+  filename: string | null;
+  claim_id: string | null;
+  score: number | null;
+}
+
+export interface ReconciliationRow {
+  eob_document_id: string;
+  eob_filename: string;
+  claim_index: number;
+  eob_claim: MatchInput;
+  status: EffectiveMatchStatus;
+  match_score: number | null;
+  reasons: string[];
+  linked: LinkedClaim | null;
+  suggested: LinkedClaim | null;
+  review: ClaimReview | null;
+  matched_at: string | null;
+  stale: boolean;
+}
+
+export interface ReconciliationResponse {
+  summary: Record<EffectiveMatchStatus, number>;
+  documents: { total: number; matched: number; in_progress: number; skipped: number; failed: number; not_started: number };
+  rows: ReconciliationRow[];
+}
+
 export interface DocumentRecord {
   id: string;
   doc_type: DocType;
@@ -86,6 +207,7 @@ export interface DocumentRecord {
   sha256_hash: string;
   created_at: string;
   extraction: ExtractionStatus | null;
+  matching: MatchingStatus | null;
 }
 
 export interface DocumentList {
@@ -166,7 +288,7 @@ export function bulkDeleteDocuments(ids: string[], docType?: DocType): Promise<B
 export function getExtractionStatuses(
   ids: string[],
   signal?: AbortSignal,
-): Promise<{ document_id: string; extraction: ExtractionStatus }[]> {
+): Promise<{ document_id: string; extraction: ExtractionStatus; matching: MatchingStatus | null }[]> {
   return request(`/api/documents/extraction-status`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -185,6 +307,49 @@ export function startExtraction(id: string): Promise<ExtractionDetail> {
 
 export function isExtractionActive(status: ExtractionStatus | null | undefined): boolean {
   return !!status && !TERMINAL_EXTRACTION_STATES.includes(status.state);
+}
+
+export function getMatching(id: string, signal?: AbortSignal): Promise<MatchingDetail> {
+  return request<MatchingDetail>(`/api/documents/${id}/matches`, { signal });
+}
+
+export function startMatching(id: string, force = false): Promise<MatchingDetail> {
+  return request<MatchingDetail>(`/api/documents/${id}/match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ force }),
+  });
+}
+
+export function saveReview(
+  id: string,
+  claimIndex: number,
+  body: { decision: "accepted" | "no_match"; edi_document_id?: string | null; note?: string | null },
+): Promise<ClaimReview> {
+  return request<ClaimReview>(`/api/documents/${id}/matches/${claimIndex}/review`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteReview(id: string, claimIndex: number): Promise<void> {
+  return request<void>(`/api/documents/${id}/matches/${claimIndex}/review`, { method: "DELETE" });
+}
+
+export function getReconciliation(
+  params: { status?: EffectiveMatchStatus; edi_document_id?: string } = {},
+  signal?: AbortSignal,
+): Promise<ReconciliationResponse> {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.edi_document_id) query.set("edi_document_id", params.edi_document_id);
+  const qs = query.toString();
+  return request<ReconciliationResponse>(`/api/reconciliation${qs ? `?${qs}` : ""}`, { signal });
+}
+
+export function rerunAllMatching(): Promise<{ queued: number; skipped: number }> {
+  return request(`/api/reconciliation/rerun`, { method: "POST" });
 }
 
 export function contentUrl(id: string, download = false): string {

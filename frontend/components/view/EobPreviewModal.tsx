@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
-import { contentUrl, deleteDocument, type DocumentRecord, type ExtractionStatus } from "@/lib/api";
+import { contentUrl, deleteDocument, type DocumentRecord, type ExtractionStatus, type MatchingStatus } from "@/lib/api";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { ExtractionPanel } from "@/components/extraction/ExtractionPanel";
+import { MatchingPanel } from "@/components/matching/MatchingPanel";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { DownloadIcon, ExternalIcon, XIcon } from "@/components/ui/Icons";
 import { Modal } from "@/components/ui/Overlay";
@@ -13,11 +14,23 @@ interface Props {
   doc: DocumentRecord;
   extraction: ExtractionStatus | null;
   onExtractionChange: (status: ExtractionStatus) => void;
+  matching: MatchingStatus | null;
+  onMatchingChange: (status: MatchingStatus) => void;
+  onReviewed: () => void;
   onClose: () => void;
   onDeleted: (id: string) => void;
 }
 
-export function EobPreviewModal({ doc, extraction, onExtractionChange, onClose, onDeleted }: Props) {
+export function EobPreviewModal({
+  doc,
+  extraction,
+  onExtractionChange,
+  matching,
+  onMatchingChange,
+  onReviewed,
+  onClose,
+  onDeleted,
+}: Props) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const titleId = `eob-modal-${doc.id}`;
 
@@ -54,8 +67,16 @@ export function EobPreviewModal({ doc, extraction, onExtractionChange, onClose, 
           <img src={contentUrl(doc.id)} alt={doc.original_filename} className="max-h-[75vh] max-w-full rounded object-contain shadow-lg" />
         </div>
 
-        <aside className="w-full shrink-0 space-y-5 border-t border-slate-200 p-5 lg:w-104 lg:overflow-y-auto lg:border-l lg:border-t-0">
+        <aside className="w-full shrink-0 space-y-5 border-t border-slate-200 p-5 lg:w-120 lg:overflow-y-auto lg:border-l lg:border-t-0">
           <ExtractionPanel documentId={doc.id} docType={doc.doc_type} status={extraction} onStatusChange={onExtractionChange} />
+          <hr className="border-slate-200" />
+          <MatchingPanel
+            documentId={doc.id}
+            extraction={extraction}
+            status={matching}
+            onStatusChange={onMatchingChange}
+            onReviewed={onReviewed}
+          />
           <hr className="border-slate-200" />
           <dl className="space-y-2 text-sm">
             {rows.map(([k, v]) => (

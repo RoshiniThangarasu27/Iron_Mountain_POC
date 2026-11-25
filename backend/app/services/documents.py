@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.document import DocType, Document
 from app.schemas.document import BulkDeleteResponse, DocumentRead, UploadFileError, UploadFileWarning, UploadResponse
 from app.services import extraction, storage
+from app.services.task_results import forget_tasks
 from app.services.validation import ValidationError, sniff_text, validate_image, validate_request_metadata
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def ingest_uploads(db: Session, doc_type: DocType, files: list[UploadFile]) -> U
                 extraction.enqueue(db, doc)
             except extraction.ExtractionQueueError as exc:
                 warnings.append(UploadFileWarning(filename=display_name, document_id=doc.id, message=str(exc)))
-            created.append(extraction.to_read(doc, extraction.initial_status(doc)))
+            created.append(extraction.to_read(doc, extraction.initial_statuses(doc)))
 
             if duplicates:
                 warnings.append(
@@ -105,11 +106,11 @@ def list_documents(db: Session, doc_type: DocType | None, limit: int, offset: in
 
 def delete_document(db: Session, doc: Document) -> None:
     relative_path = doc.storage_path
-    task_id = doc.extraction_task_id
+    task_ids = [doc.extraction_task_id, doc.matching_task_id]
     db.delete(doc)
     db.commit()
     storage.delete_file(relative_path)
-    extraction.forget_tasks([task_id])
+    forget_tasks(task_ids)
 
 
 def bulk_delete_documents(db: Session, ids: list[uuid.UUID], doc_type: DocType | None = None) -> BulkDeleteResponse:
@@ -120,13 +121,13 @@ def bulk_delete_documents(db: Session, ids: list[uuid.UUID], doc_type: DocType |
     docs = list(db.scalars(stmt))
 
     found = {d.id: d.storage_path for d in docs}
-    task_ids = [d.extraction_task_id for d in docs]
+    task_ids = [t for d in docs for t in (d.extraction_task_id, d.matching_task_id)]
     for doc in docs:
         db.delete(doc)
     db.commit()
 
     cleanup_failed = [doc_id for doc_id, path in found.items() if not storage.delete_file(path)]
-    extraction.forget_tasks(task_ids)
+    forget_tasks(task_ids)
     return BulkDeleteResponse(
         deleted=[i for i in unique_ids if i in found],
         not_found=[i for i in unique_ids if i not in found],

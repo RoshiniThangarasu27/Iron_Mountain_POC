@@ -18,6 +18,7 @@ class ExtractionState(str, enum.Enum):
 
 
 TERMINAL_STATES = {ExtractionState.NOT_STARTED, ExtractionState.SUCCEEDED, ExtractionState.FAILED}
+ACTIVE_STATES = {ExtractionState.QUEUED, ExtractionState.RUNNING, ExtractionState.RETRYING}
 
 
 class ExtractionStatus(BaseModel):
@@ -31,6 +32,22 @@ class ExtractionStatus(BaseModel):
     finished_at: datetime | None = None
 
 
+class MatchingSummary(BaseModel):
+    claims: int = 0
+    auto_matched: int = 0
+    needs_review: int = 0
+    unmatched: int = 0
+    confirmed: int = 0
+    no_match: int = 0
+    skipped: bool = False
+    skip_reason: str | None = None
+    stale: bool = False
+
+
+class MatchingStatus(ExtractionStatus):
+    summary: MatchingSummary | None = None
+
+
 class ExtractionDetail(ExtractionStatus):
     result: dict[str, Any] | None = None
 
@@ -42,3 +59,4 @@ class ExtractionStatusRequest(BaseModel):
 class ExtractionStatusItem(BaseModel):
     document_id: uuid.UUID
     extraction: ExtractionStatus
+    matching: MatchingStatus | None = None

@@ -1,3 +1,3 @@
-from app.models.document import DocType, Document
+from app.models.document import ClaimMatchReview, DocType, Document, ReviewDecision
 
-__all__ = ["Document", "DocType"]
+__all__ = ["ClaimMatchReview", "Document", "DocType", "ReviewDecision"]

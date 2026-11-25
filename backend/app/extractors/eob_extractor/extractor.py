@@ -3,6 +3,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import openai
 from openai import AzureOpenAI
@@ -12,6 +13,12 @@ from app.extractors.errors import ExtractionConfigError, ExtractionError
 
 PROMPT_PATH = Path(__file__).with_name("extraction_prompt.txt")
 USER_INSTRUCTION = "Extract the EOB into structured JSON."
+
+STATUS_HINTS = {
+    401: ": check AZURE_OPENAI_KEY",
+    403: ": the key has no access to this resource",
+    404: ": check AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT",
+}
 
 TRANSIENT_ERRORS: tuple[type[Exception], ...] = (
     openai.APIConnectionError,
@@ -26,11 +33,34 @@ def load_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def get_client() -> AzureOpenAI:
+def _setting_problem(name: str, value: str) -> str | None:
+    for index, char in enumerate(value):
+        if ord(char) > 127:
+            return f"{name} contains a non-ASCII character at position {index + 1}; copy the value again from Azure"
+        if char.isspace() or char in "\"'":
+            return f"{name} contains a space or quote at position {index + 1}; remove it"
+    if name == "AZURE_OPENAI_ENDPOINT":
+        if "%22" in value.lower() or "%27" in value.lower():
+            return "AZURE_OPENAI_ENDPOINT contains an encoded quote (%22 or %27); remove it"
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or not parsed.netloc:
+            return "AZURE_OPENAI_ENDPOINT must be an https:// URL"
+    return None
+
+
+def validate_settings() -> None:
     if not settings.azure_openai_configured:
         raise ExtractionConfigError(
             "Azure OpenAI is not configured: set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_KEY and AZURE_OPENAI_DEPLOYMENT"
         )
+    for name in ("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY", "AZURE_OPENAI_DEPLOYMENT", "AZURE_OPENAI_API_VERSION"):
+        problem = _setting_problem(name, getattr(settings, name))
+        if problem:
+            raise ExtractionConfigError(problem)
+
+
+def get_client() -> AzureOpenAI:
+    validate_settings()
     return AzureOpenAI(
         azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
         api_key=settings.AZURE_OPENAI_KEY,
@@ -89,7 +119,23 @@ def review_decision(payload: dict[str, Any]) -> dict[str, Any]:
 def call_model(image: bytes, mime_type: str) -> str:
     client = get_client()
     image_base64 = base64.b64encode(image).decode("ascii")
-    response = client.chat.completions.create(
+    try:
+        response = _create_completion(client, image_base64, mime_type)
+    except TRANSIENT_ERRORS:
+        raise
+    except openai.APIStatusError as exc:
+        hint = STATUS_HINTS.get(exc.status_code, "")
+        raise ExtractionError(f"Azure OpenAI rejected the request (HTTP {exc.status_code}){hint}") from None
+    except Exception as exc:
+        raise ExtractionError(f"Azure OpenAI request failed ({type(exc).__name__})") from None
+    content = response.choices[0].message.content if response.choices else None
+    if not content:
+        raise ExtractionError("Model returned empty content")
+    return content
+
+
+def _create_completion(client: AzureOpenAI, image_base64: str, mime_type: str):
+    return client.chat.completions.create(
         model=settings.AZURE_OPENAI_DEPLOYMENT,
         messages=[
             {"role": "system", "content": load_prompt()},
@@ -103,10 +149,6 @@ def call_model(image: bytes, mime_type: str) -> str:
         ],
         temperature=0,
     )
-    content = response.choices[0].message.content if response.choices else None
-    if not content:
-        raise ExtractionError("Model returned empty content")
-    return content
 
 
 def extract_eob(image: bytes, mime_type: str) -> dict[str, Any]:

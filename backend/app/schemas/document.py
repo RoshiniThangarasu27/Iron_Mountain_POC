@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.document import DocType
-from app.schemas.extraction import ExtractionStatus
+from app.schemas.extraction import ExtractionStatus, MatchingStatus
 
 
 class DocumentRead(BaseModel):
@@ -20,6 +20,7 @@ class DocumentRead(BaseModel):
     sha256_hash: str
     created_at: datetime
     extraction: ExtractionStatus | None = None
+    matching: MatchingStatus | None = None
 
 
 class DocumentList(BaseModel):

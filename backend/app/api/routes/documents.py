@@ -84,7 +84,9 @@ def bulk_delete_documents(payload: BulkDeleteRequest, db: Session = Depends(get_
 def extraction_statuses(payload: ExtractionStatusRequest, db: Session = Depends(get_db)):
     docs = list(db.scalars(select(Document).where(Document.id.in_(payload.ids))))
     statuses = extraction.get_statuses(db, docs)
-    return [ExtractionStatusItem(document_id=d.id, extraction=statuses[d.id]) for d in docs]
+    return [
+        ExtractionStatusItem(document_id=d.id, extraction=statuses[d.id][0], matching=statuses[d.id][1]) for d in docs
+    ]
 
 
 @router.get("/{doc_id}", response_model=DocumentRead)
@@ -101,7 +103,7 @@ def get_extraction(doc_id: uuid.UUID, db: Session = Depends(get_db)):
 @router.post("/{doc_id}/extract", response_model=ExtractionDetail, status_code=status.HTTP_202_ACCEPTED)
 def start_extraction(doc_id: uuid.UUID, db: Session = Depends(get_db)):
     doc = _get_or_404(db, doc_id)
-    current = extraction.get_statuses(db, [doc])[doc.id]
+    current, _ = extraction.get_statuses(db, [doc])[doc.id]
     if current.state not in TERMINAL_STATES:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Extraction is already in progress")
     try:

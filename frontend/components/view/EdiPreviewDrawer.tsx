@@ -7,6 +7,7 @@ import { formatBytes, formatDateTime } from "@/lib/format";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { DownloadIcon, SpinnerIcon, XIcon } from "@/components/ui/Icons";
 import { ExtractionPanel } from "@/components/extraction/ExtractionPanel";
+import { MatchedPayments } from "@/components/matching/MatchedPayments";
 import { Drawer } from "@/components/ui/Overlay";
 
 type ViewMode = "segments" | "raw";
@@ -82,6 +83,9 @@ export function EdiPreviewDrawer({ doc, extraction, onExtractionChange, onClose,
       <div className="flex-1 overflow-y-auto">
         <div className="border-b border-slate-100 px-5 py-4">
           <ExtractionPanel documentId={doc.id} docType={doc.doc_type} status={extraction} onStatusChange={onExtractionChange} />
+        </div>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <MatchedPayments ediDocumentId={doc.id} />
         </div>
         <section className="px-5 py-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
