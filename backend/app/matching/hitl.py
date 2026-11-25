@@ -20,7 +20,4 @@ def evaluate_match(match_result: dict[str, Any]) -> dict[str, Any]:
         if abs(top_score - second_score) < AMBIGUITY_GAP:
             reasons.append("Multiple similar candidates")
 
-    for conflict in best_match.get("identifier_conflicts") or []:
-        reasons.append(f"{conflict['label']} differs (EOB {conflict['eob']} vs 837 {conflict['claim']})")
-
     return {"requires_human_review": bool(reasons), "match_score": match_score, "reasons": reasons}

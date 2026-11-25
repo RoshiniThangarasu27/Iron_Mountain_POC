@@ -22,7 +22,7 @@ export function ViewPanel() {
         onChange={setTab}
         items={[
           { id: "edi_837", label: "837 EDI (txt)", icon: <FileTextIcon width={16} height={16} /> },
-          { id: "eob_835", label: "835 EOB (image)", icon: <ImageIcon width={16} height={16} /> },
+          { id: "eob_835", label: "EOB image", icon: <ImageIcon width={16} height={16} /> },
         ]}
       />
       <TabPanel idPrefix="view" id={tab}>

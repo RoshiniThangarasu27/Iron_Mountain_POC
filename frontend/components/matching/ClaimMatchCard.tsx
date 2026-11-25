@@ -24,14 +24,14 @@ function dateRange(from: string | null | undefined, to: string | null | undefine
   return `${from} – ${to}`;
 }
 
-type Verdict = "match" | "partial" | "miss" | "conflict" | "na";
+type Verdict = "match" | "partial" | "miss" | "differs" | "na";
 
 function VerdictCell({ verdict, children }: { verdict: Verdict; children: ReactNode }) {
   const style = {
     match: "text-emerald-700",
     partial: "text-amber-700",
     miss: "text-slate-400",
-    conflict: "text-red-700 font-medium",
+    differs: "text-amber-700",
     na: "text-slate-400",
   }[verdict];
   return <td className={`whitespace-nowrap px-2 py-1.5 text-right tabular-nums ${style}`}>{children}</td>;
@@ -52,8 +52,8 @@ function Comparison({ item, candidate }: { item: ClaimMatchItem; candidate: Matc
   );
 
   const idVerdict = (label: string): [string, Verdict] => {
-    if (candidate.identifier_matches.includes(label)) return ["agrees", "match"];
-    if (candidate.identifier_conflicts.some((c) => c.label === label)) return ["conflict", "conflict"];
+    if (candidate.identifier_matches.includes(label)) return ["agrees · not scored", "match"];
+    if (candidate.identifier_conflicts.some((c) => c.label === label)) return ["differs · not scored", "differs"];
     return ["not scored", "na"];
   };
 
@@ -96,7 +96,7 @@ function Comparison({ item, candidate }: { item: ClaimMatchItem; candidate: Matc
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((row) => (
-            <tr key={row.label} className={row.verdict[1] === "conflict" ? "bg-red-50/60" : undefined}>
+            <tr key={row.label}>
               <td className="whitespace-nowrap px-2 py-1.5 font-medium text-slate-600">{row.label}</td>
               <td className="break-words px-2 py-1.5 text-slate-900">{row.eob}</td>
               <td className="break-words px-2 py-1.5 text-slate-900">{row.claim}</td>
@@ -150,6 +150,8 @@ export function ClaimMatchCard({ eobDocumentId, item, onChanged, showNote = fals
   const undo = () => run("undo", () => deleteReview(eobDocumentId, item.index));
 
   const confirmedThis = item.review?.decision === "accepted" && item.review.edi_document_id === candidate?.document_id;
+  const isAuto = item.effective_status === "auto_matched";
+  const viewingAutoMatch = isAuto && selected === 0;
 
   return (
     <article className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -190,6 +192,16 @@ export function ClaimMatchCard({ eobDocumentId, item, onChanged, showNote = fals
         </div>
       )}
 
+      {isAuto && item.best_match && (
+        <p className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <CheckIcon width={16} height={16} className="mt-0.5 shrink-0" />
+          <span>
+            Auto-confirmed as <span className="font-mono font-semibold">{item.best_match.claim_id ?? "?"}</span> · score{" "}
+            {item.best_match.score.toFixed(1)}. No review needed.
+          </span>
+        </p>
+      )}
+
       {!item.review && reasons.length > 0 && (
         <ul className="space-y-0.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           {reasons.map((r) => (
@@ -223,6 +235,10 @@ export function ClaimMatchCard({ eobDocumentId, item, onChanged, showNote = fals
             ))}
           </div>
 
+          {item.candidates.length === 1 && (
+            <p className="text-xs text-slate-500">No other 837 claim scored close enough to list as an alternative.</p>
+          )}
+
           {candidate && (
             <div className="space-y-3">
               <p className="truncate text-xs text-slate-500">
@@ -251,15 +267,17 @@ export function ClaimMatchCard({ eobDocumentId, item, onChanged, showNote = fals
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={confirm}
-          disabled={!candidate?.document_id || busy !== null || confirmedThis}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
-        >
-          {busy === "confirm" ? <SpinnerIcon width={14} height={14} /> : <CheckIcon width={14} height={14} />}
-          {confirmedThis ? "Confirmed" : `Confirm ${candidate?.claim_id ?? "match"}`}
-        </button>
+        {!viewingAutoMatch && (
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={!candidate?.document_id || busy !== null || confirmedThis}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50"
+          >
+            {busy === "confirm" ? <SpinnerIcon width={14} height={14} /> : <CheckIcon width={14} height={14} />}
+            {confirmedThis ? "Confirmed" : isAuto ? `Use ${candidate?.claim_id ?? "this claim"} instead` : `Confirm ${candidate?.claim_id ?? "match"}`}
+          </button>
+        )}
         <button
           type="button"
           onClick={noMatch}
@@ -267,7 +285,7 @@ export function ClaimMatchCard({ eobDocumentId, item, onChanged, showNote = fals
           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50"
         >
           {busy === "no_match" ? <SpinnerIcon width={14} height={14} /> : <XIcon width={14} height={14} />}
-          No match
+          {isAuto ? "Reject auto-match" : "No match"}
         </button>
       </div>
     </article>

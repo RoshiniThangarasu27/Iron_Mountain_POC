@@ -1,4 +1,3 @@
-import { DocTypeNote } from "@/components/DocTypeNote";
 import { FileTextIcon, ImageIcon } from "@/components/ui/Icons";
 
 import { UploadCard } from "./UploadCard";
@@ -6,7 +5,6 @@ import { UploadCard } from "./UploadCard";
 export function UploadPanel() {
   return (
     <div className="space-y-6">
-      <DocTypeNote />
       <div className="grid gap-6 lg:grid-cols-2">
         <UploadCard
           docType="edi_837"
@@ -19,7 +17,7 @@ export function UploadPanel() {
         />
         <UploadCard
           docType="eob_835"
-          title="EOB / 835 images"
+          title="EOB images"
           subtitle="Explanation of Benefits / remittance page images"
           extensions={[".png", ".jpg", ".jpeg", ".webp"]}
           acceptMime={["image/png", "image/jpeg", "image/webp"]}

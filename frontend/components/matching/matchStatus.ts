@@ -9,7 +9,7 @@ export const MATCH_STATUS_ORDER: EffectiveMatchStatus[] = [
 ];
 
 export const MATCH_STATUS_LABEL: Record<EffectiveMatchStatus, string> = {
-  auto_matched: "Auto-matched",
+  auto_matched: "Auto-confirmed",
   needs_review: "Needs review",
   unmatched: "Unmatched",
   confirmed: "Confirmed",
@@ -17,7 +17,7 @@ export const MATCH_STATUS_LABEL: Record<EffectiveMatchStatus, string> = {
 };
 
 export const MATCH_STATUS_HINT: Record<EffectiveMatchStatus, string> = {
-  auto_matched: "Score ≥ 85 with no conflicts or close runner-up",
+  auto_matched: "Score ≥ 85 with no close runner-up: confirmed automatically, no review needed",
   needs_review: "A likely match that a person should confirm",
   unmatched: "No 837 claim scored high enough",
   confirmed: "A reviewer confirmed the 837 claim",

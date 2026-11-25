@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 from app.matching.constants import (
+    AMBIGUITY_GAP,
     AUTO_MATCH,
     AUTO_MATCH_THRESHOLD,
     MATCH_WEIGHTS,
@@ -25,10 +26,19 @@ class ClaimMatcher:
             key=lambda c: (c["score"], len(c["identifier_matches"]), -len(c["identifier_conflicts"])),
             reverse=True,
         )
-        return {
-            "best_match": candidates[0] if candidates else None,
-            "top_candidates": candidates[:TOP_CANDIDATES],
-        }
+        best = candidates[0] if candidates else None
+        return {"best_match": best, "top_candidates": self.plausible_candidates(candidates[:TOP_CANDIDATES])}
+
+    @staticmethod
+    def plausible_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not candidates:
+            return []
+        best = candidates[0]
+        if best["score"] < REVIEW_THRESHOLD:
+            return [best]
+        return [best] + [
+            c for c in candidates[1:] if c["score"] >= REVIEW_THRESHOLD or best["score"] - c["score"] < AMBIGUITY_GAP
+        ]
 
     def score_claim(self, eob: dict[str, Any], claim: dict[str, Any]) -> dict[str, Any]:
         total_score = 0.0
@@ -83,8 +93,6 @@ class ClaimMatcher:
         identifier_matches, identifier_conflicts = self.identifier_check(eob, claim)
         normalized_score = round((total_score / MAX_SCORE) * 100, 2)
         status = self.determine_status(normalized_score)
-        if status == AUTO_MATCH and identifier_conflicts:
-            status = REVIEW
 
         return {
             "document_id": claim.get("document_id"),
